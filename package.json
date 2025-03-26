@@ -1,0 +1,26 @@
+{
+  "name": "notify-test",
+  "version": "1.0.0",
+  "main": "server/app.js",
+  "scripts": {
+    "start": "node server/app.js",
+    "dev": "nodemon server/app.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "koa": "^2.16.0",
+    "koa-bodyparser": "^4.4.1",
+    "koa-router": "^13.0.1",
+    "koa-static": "^5.0.0",
+    "web-push": "^3.6.7"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  }
+}

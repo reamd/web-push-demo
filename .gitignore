@@ -1,0 +1,52 @@
+# 依赖项
+node_modules/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+# package-lock.json  # 这个文件应该被版本控制
+yarn.lock
+
+# 环境配置
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# 操作系统生成的文件
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 编辑器配置
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# 日志
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 构建和缓存
+dist/
+build/
+coverage/
+.cache/
+.parcel-cache/
+.next/
+.nuxt/
+.nyc_output/
+
+# Web Push 相关
+/certificates/
+/keys/
+vapid_private.json
+vapid_public.json
+
+# 临时文件
+tmp/
+temp/ 

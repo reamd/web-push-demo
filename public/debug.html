@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Web Push 调试工具</title>
+  <style>
+    body {
+      font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f5f5f5;
+      color: #333;
+    }
+    .container {
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+      color: #1677ff;
+    }
+    .card {
+      border: 1px solid #eee;
+      padding: 15px;
+      margin: 15px 0;
+      border-radius: 4px;
+    }
+    .info-item {
+      margin-bottom: 10px;
+      padding: 8px;
+      border-radius: 4px;
+      background-color: #f0f8ff;
+    }
+    .info-item strong {
+      display: inline-block;
+      min-width: 180px;
+    }
+    .btn {
+      background-color: #1677ff;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      cursor: pointer;
+      font-size: 16px;
+      border-radius: 4px;
+      display: inline-block;
+      margin: 5px 0;
+    }
+    .btn:hover {
+      background-color: #0d5fc2;
+    }
+    .debug-section {
+      margin-top: 20px;
+    }
+    pre {
+      background: #f4f4f4;
+      border-left: 3px solid #1677ff;
+      color: #333;
+      page-break-inside: avoid;
+      font-family: monospace;
+      font-size: 15px;
+      line-height: 1.6;
+      margin-bottom: 1.6em;
+      max-width: 100%;
+      overflow: auto;
+      padding: 1em 1.5em;
+      display: block;
+      word-wrap: break-word;
+    }
+    .links {
+      text-align: center;
+      margin-top: 20px;
+    }
+    .links a {
+      color: #1677ff;
+      margin: 0 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Web Push 调试工具</h1>
+
+    <div class="links">
+      <a href="/">返回主页</a>
+    </div>
+    
+    <div class="card">
+      <h2>浏览器支持检查</h2>
+      <div class="info-item">
+        <strong>Service Worker 支持:</strong> <span id="sw-support">检查中...</span>
+      </div>
+      <div class="info-item">
+        <strong>Push API 支持:</strong> <span id="push-support">检查中...</span>
+      </div>
+      <div class="info-item">
+        <strong>Notification API 支持:</strong> <span id="notification-support">检查中...</span>
+      </div>
+      <div class="info-item">
+        <strong>通知权限状态:</strong> <span id="notification-permission">检查中...</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Service Worker 状态</h2>
+      <div class="info-item">
+        <strong>注册状态:</strong> <span id="sw-status">未检查</span>
+      </div>
+      <div class="info-item">
+        <strong>Service Worker 状态:</strong> <span id="sw-state">未检查</span>
+      </div>
+      <div class="info-item">
+        <strong>更新检查时间:</strong> <span id="sw-updated">未检查</span>
+      </div>
+      <button id="check-sw-btn" class="btn">检查 Service Worker 状态</button>
+    </div>
+
+    <div class="card">
+      <h2>推送订阅</h2>
+      <div class="info-item">
+        <strong>订阅状态:</strong> <span id="subscription-status">未检查</span>
+      </div>
+      <div class="info-item">
+        <strong>订阅端点:</strong> <span id="subscription-endpoint">未检查</span>
+      </div>
+      <button id="check-subscription-btn" class="btn">检查推送订阅</button>
+      <div class="debug-section">
+        <h3>订阅详情</h3>
+        <pre id="subscription-json">未获取</pre>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>VAPID 公钥</h2>
+      <div class="info-item">
+        <strong>公钥状态:</strong> <span id="vapid-status">未检查</span>
+      </div>
+      <button id="check-vapid-btn" class="btn">检查 VAPID 公钥</button>
+      <div class="debug-section">
+        <pre id="vapid-json">未获取</pre>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>调试操作</h2>
+      <button id="reset-sw-btn" class="btn">重置 Service Worker</button>
+      <button id="request-permission-btn" class="btn">请求通知权限</button>
+      <button id="manual-subscribe-btn" class="btn">手动订阅推送</button>
+      <button id="manual-unsubscribe-btn" class="btn">手动取消订阅</button>
+    </div>
+
+    <div class="card">
+      <h2>API 测试</h2>
+      <button id="test-api-btn" class="btn">测试 API 连通性</button>
+      <div class="debug-section">
+        <pre id="api-test-result">未测试</pre>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // DOM 元素
+    const swSupportEl = document.getElementById('sw-support');
+    const pushSupportEl = document.getElementById('push-support');
+    const notificationSupportEl = document.getElementById('notification-support');
+    const notificationPermissionEl = document.getElementById('notification-permission');
+    const swStatusEl = document.getElementById('sw-status');
+    const swStateEl = document.getElementById('sw-state');
+    const swUpdatedEl = document.getElementById('sw-updated');
+    const subscriptionStatusEl = document.getElementById('subscription-status');
+    const subscriptionEndpointEl = document.getElementById('subscription-endpoint');
+    const subscriptionJsonEl = document.getElementById('subscription-json');
+    const vapidStatusEl = document.getElementById('vapid-status');
+    const vapidJsonEl = document.getElementById('vapid-json');
+    const apiTestResultEl = document.getElementById('api-test-result');
+
+    // 按钮
+    const checkSwBtn = document.getElementById('check-sw-btn');
+    const checkSubscriptionBtn = document.getElementById('check-subscription-btn');
+    const checkVapidBtn = document.getElementById('check-vapid-btn');
+    const resetSwBtn = document.getElementById('reset-sw-btn');
+    const requestPermissionBtn = document.getElementById('request-permission-btn');
+    const testApiBtn = document.getElementById('test-api-btn');
+
+    // 检查浏览器支持
+    function checkBrowserSupport() {
+      // 检查 Service Worker 支持
+      if ('serviceWorker' in navigator) {
+        swSupportEl.textContent = '✅ 支持';
+      } else {
+        swSupportEl.textContent = '❌ 不支持';
+      }
+
+      // 检查 Push API 支持
+      if ('PushManager' in window) {
+        pushSupportEl.textContent = '✅ 支持';
+      } else {
+        pushSupportEl.textContent = '❌ 不支持';
+      }
+
+      // 检查 Notification API 支持
+      if ('Notification' in window) {
+        notificationSupportEl.textContent = '✅ 支持';
+      } else {
+        notificationSupportEl.textContent = '❌ 不支持';
+      }
+
+      // 检查通知权限
+      if ('Notification' in window) {
+        notificationPermissionEl.textContent = Notification.permission;
+      } else {
+        notificationPermissionEl.textContent = '不适用';
+      }
+    }
+
+    // 检查 Service Worker 状态
+    async function checkServiceWorker() {
+      if (!('serviceWorker' in navigator)) {
+        swStatusEl.textContent = '浏览器不支持 Service Worker';
+        return;
+      }
+
+      try {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        if (registrations.length === 0) {
+          swStatusEl.textContent = '没有已注册的 Service Worker';
+          swStateEl.textContent = '不适用';
+          return;
+        }
+
+        // 假设只有一个 Service Worker 注册
+        const registration = registrations[0];
+        swStatusEl.textContent = '已注册';
+        
+        // 获取当前活动的 Service Worker
+        let currentWorker = registration.active;
+        
+        if (registration.installing) {
+          swStateEl.textContent = '安装中';
+          currentWorker = registration.installing;
+        } else if (registration.waiting) {
+          swStateEl.textContent = '等待激活';
+          currentWorker = registration.waiting;
+        } else if (registration.active) {
+          swStateEl.textContent = '活跃中';
+          currentWorker = registration.active;
+        }
+
+        swUpdatedEl.textContent = new Date().toLocaleString();
+
+        // 添加状态变更监听器
+        if (currentWorker) {
+          currentWorker.addEventListener('statechange', (event) => {
+            swStateEl.textContent = currentWorker.state;
+          });
+        }
+      } catch (error) {
+        console.error('检查 Service Worker 失败:', error);
+        swStatusEl.textContent = '检查失败: ' + error.message;
+      }
+    }
+
+    // 检查推送订阅
+    async function checkPushSubscription() {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        subscriptionStatusEl.textContent = '浏览器不支持推送订阅';
+        return;
+      }
+
+      try {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        if (registrations.length === 0) {
+          subscriptionStatusEl.textContent = '没有 Service Worker 注册';
+          return;
+        }
+
+        const registration = registrations[0];
+        const subscription = await registration.pushManager.getSubscription();
+
+        if (!subscription) {
+          subscriptionStatusEl.textContent = '没有活跃的订阅';
+          subscriptionEndpointEl.textContent = '不适用';
+          subscriptionJsonEl.textContent = '没有订阅数据';
+          return;
+        }
+
+        subscriptionStatusEl.textContent = '已订阅';
+        subscriptionEndpointEl.textContent = subscription.endpoint.substring(0, 50) + '...';
+        subscriptionJsonEl.textContent = JSON.stringify(subscription.toJSON(), null, 2);
+      } catch (error) {
+        console.error('检查推送订阅失败:', error);
+        subscriptionStatusEl.textContent = '检查失败: ' + error.message;
+      }
+    }
+
+    // 检查 VAPID 公钥
+    async function checkVapidPublicKey() {
+      try {
+        const response = await fetch('/api/vapidPublicKey');
+        if (!response.ok) {
+          throw new Error(`HTTP 错误: ${response.status}`);
+        }
+        const data = await response.json();
+        vapidStatusEl.textContent = '已获取';
+        vapidJsonEl.textContent = JSON.stringify(data, null, 2);
+      } catch (error) {
+        console.error('获取 VAPID 公钥失败:', error);
+        vapidStatusEl.textContent = '获取失败: ' + error.message;
+        vapidJsonEl.textContent = '获取 VAPID 公钥失败: ' + error.message;
+      }
+    }
+
+    // 重置 Service Worker
+    async function resetServiceWorker() {
+      if (!('serviceWorker' in navigator)) {
+        alert('浏览器不支持 Service Worker');
+        return;
+      }
+
+      try {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        for (let registration of registrations) {
+          await registration.unregister();
+        }
+        alert('Service Worker 已重置，请刷新页面');
+        window.location.reload();
+      } catch (error) {
+        console.error('重置 Service Worker 失败:', error);
+        alert('重置失败: ' + error.message);
+      }
+    }
+
+    // 请求通知权限
+    async function requestNotificationPermission() {
+      if (!('Notification' in window)) {
+        alert('浏览器不支持通知');
+        return;
+      }
+
+      try {
+        const permission = await Notification.requestPermission();
+        alert(`通知权限: ${permission}`);
+        notificationPermissionEl.textContent = permission;
+      } catch (error) {
+        console.error('请求通知权限失败:', error);
+        alert('请求失败: ' + error.message);
+      }
+    }
+
+    // 测试 API 连通性
+    async function testApiConnectivity() {
+      try {
+        const endpoints = [
+          '/api/vapidPublicKey',
+          '/api/subscriptions/count'
+        ];
+
+        const results = {};
+
+        for (const endpoint of endpoints) {
+          try {
+            const startTime = performance.now();
+            const response = await fetch(endpoint);
+            const endTime = performance.now();
+            const responseTime = Math.round(endTime - startTime);
+
+            results[endpoint] = {
+              status: response.status,
+              ok: response.ok,
+              responseTime: `${responseTime}ms`,
+              data: response.ok ? await response.json() : null
+            };
+          } catch (error) {
+            results[endpoint] = {
+              error: error.message
+            };
+          }
+        }
+
+        apiTestResultEl.textContent = JSON.stringify(results, null, 2);
+      } catch (error) {
+        console.error('API 测试失败:', error);
+        apiTestResultEl.textContent = '测试失败: ' + error.message;
+      }
+    }
+
+    // 绑定事件
+    checkSwBtn.addEventListener('click', checkServiceWorker);
+    checkSubscriptionBtn.addEventListener('click', checkPushSubscription);
+    checkVapidBtn.addEventListener('click', checkVapidPublicKey);
+    resetSwBtn.addEventListener('click', resetServiceWorker);
+    requestPermissionBtn.addEventListener('click', requestNotificationPermission);
+    testApiBtn.addEventListener('click', testApiConnectivity);
+    
+    // 手动订阅按钮事件
+    document.getElementById('manual-subscribe-btn').addEventListener('click', async () => {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        alert('浏览器不支持推送订阅');
+        return;
+      }
+      
+      try {
+        // 请求通知权限
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+          throw new Error('需要通知权限');
+        }
+        
+        // 获取 VAPID 公钥
+        const response = await fetch('/api/vapidPublicKey');
+        if (!response.ok) {
+          throw new Error('获取公钥失败');
+        }
+        
+        const data = await response.json();
+        const publicKey = data.publicKey;
+        
+        // 转换公钥格式
+        const applicationServerKey = urlBase64ToUint8Array(publicKey);
+        
+        // 获取 Service Worker 注册
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        if (registrations.length === 0) {
+          throw new Error('没有 Service Worker 注册');
+        }
+        
+        const registration = registrations[0];
+        
+        // 获取现有订阅并取消
+        const existingSub = await registration.pushManager.getSubscription();
+        if (existingSub) {
+          await existingSub.unsubscribe();
+        }
+        
+        // 创建新订阅
+        const subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: applicationServerKey
+        });
+        
+        // 发送到服务器
+        const subscribeResponse = await fetch('/api/subscribe', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(subscription)
+        });
+        
+        if (!subscribeResponse.ok) {
+          throw new Error('服务器拒绝了订阅请求');
+        }
+        
+        alert('手动订阅成功!');
+        // 刷新订阅状态
+        checkPushSubscription();
+        
+      } catch (error) {
+        console.error('手动订阅失败:', error);
+        alert('手动订阅失败: ' + error.message);
+      }
+    });
+    
+    // 手动取消订阅按钮事件  
+    document.getElementById('manual-unsubscribe-btn').addEventListener('click', async () => {
+      try {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        if (registrations.length === 0) {
+          alert('没有 Service Worker 注册');
+          return;
+        }
+        
+        const registration = registrations[0];
+        const subscription = await registration.pushManager.getSubscription();
+        
+        if (!subscription) {
+          alert('没有活跃的订阅');
+          return;
+        }
+        
+        await subscription.unsubscribe();
+        alert('取消订阅成功');
+        // 刷新订阅状态
+        checkPushSubscription();
+        
+      } catch (error) {
+        console.error('取消订阅失败:', error);
+        alert('取消订阅失败: ' + error.message);
+      }
+    });
+    
+    // Base64 转 Uint8Array (用于VAPID key)
+    function urlBase64ToUint8Array(base64String) {
+      const padding = '='.repeat((4 - base64String.length % 4) % 4);
+      const base64 = (base64String + padding)
+        .replace(/\-/g, '+')
+        .replace(/_/g, '/');
+    
+      const rawData = window.atob(base64);
+      const outputArray = new Uint8Array(rawData.length);
+    
+      for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+      }
+      return outputArray;
+    }
+
+    // 页面加载时进行初始检查
+    window.addEventListener('load', () => {
+      checkBrowserSupport();
+      checkServiceWorker();
+      checkPushSubscription();
+      checkVapidPublicKey();
+    });
+  </script>
+</body>
+</html> 
